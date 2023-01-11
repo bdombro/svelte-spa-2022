@@ -1,10 +1,16 @@
-# Svelte + TS + Vite + Router
+# Svelte-SPA-2022 Template
 
-This template should help get you started developing with Svelte and TypeScript in Vite.
+This template should help get you started developing a SPA application with Svelte
 
 **Features**
 
-- urouter: Tiny, more customizable router with codesplitting, lazy loading
+- Produces a pure SPA app - no SSR or server required
+- Tiny: fully featured bundles start at ~6.4kb
+
+**Dependencies**
+
+- @usvelte/router: Tiny, more customizable SPA router with codesplitting, cached lazy loading
+- @usvelte/swr: Tiny data-fetching Component hook that loads instantly from cache and refreshes once loaded
 
 **Why use this over SvelteKit?**
 

@@ -16,32 +16,37 @@
   updatePath(location.pathname)
 
 	onMount(() => {
+
+    // Intercept history changes
+    const pushStateOrig = history.pushState.bind(history)
+    const replaceStateOrig = history.replaceState.bind(history)
+    history.pushState = function(date, unused, url: string) {
+      if (url[0] === '/') {
+        const urlObj = new URL(`http://a${url}`)
+        const pushOrReplace = urlObj.hash === '#replace' ? replaceStateOrig : pushStateOrig
+        pushOrReplace(date, unused, url)
+        updatePath(urlObj.pathname)
+        globalThis?.scrollTo(0, 0)
+      } else {
+        pushStateOrig(date, unused, url)
+      }
+    }
+    history.replaceState = function(date, unused, url) {
+      history.pushState(date, unused, url + '#replace')
+    }
+    addEventListener('popstate', () => {
+      updatePath(location.pathname)
+    })
+
     /**
-     * interceptNavEvents: Intercept changes in navigation to dispatch
-     * events and prevent default
+     * intercept anchor tag clicks
     */
     addEventListener('click', function linkIntercepter(e: any) {
       const ln = findLinkTagInParents(e.target) // aka linkNode
-
       if (ln?.host === location.host) {
-        dispatchEvent(new Event('link-clicked'))
         e.preventDefault()
-
-        if (ln.hash) dispatchEvent(new Event(ln.hash))
-
-        if (ln.pathname + ln.search !== location.pathname + location.search) {
-          const to = ln.pathname + ln.search
-          if (ln.hash === '#replace') {
-            history['replaceState'](Date.now(), '', to)
-          }
-          else {
-            history['pushState'](Date.now(), '', to)
-            globalThis?.scrollTo(0, 0)
-          }
-          updatePath(ln.pathname)
-        } else {
-          globalThis?.scrollTo(0, 0)
-        }
+        const to = ln.pathname + ln.search
+        history.pushState(Date.now(), '', to)
       }
 
       function findLinkTagInParents(node: HTMLElement): any {
@@ -50,9 +55,7 @@
       }
     })
 
-    addEventListener('popstate', () => {
-      updatePath(location.pathname)
-    })
+    
   })
 </script>
 

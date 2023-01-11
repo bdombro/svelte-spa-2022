@@ -1,15 +1,19 @@
 <script lang="ts">
-  import {Switch} from './router'
+  import {Switch} from './@usvelte/router'
   import { routes as r } from './routes'
+  const navitems = [
+    {name: r.val.index.title, path: r.val.index.toPath()},
+    {name: r.val.hello.title, path: r.val.hello.toPath({ name: 'world' })},
+    {name: r.val.planets.title, path: r.val.planets.toPath({ page: '1' })},
+    {name: '404', path: '/does-not-exist'},
+  ]
 </script>
 
-<header style="height: 30px; ">
+<header style="height: 50px; ">
   <nav>
-    <a href={r.path('index')}>Home</a>
-    <a href={r.path('hello', {name: 'world'})}>Hello</a>
-    <a href={r.path('page1')}>Page 1</a>
-    <a href={r.path('page2')}>Page 2</a>
-    <a href="/does-not-exist">404</a>
+    {#each navitems as item}
+      <a href={item.path}>{item.name}</a>
+    {/each}
   </nav>
 </header>
 

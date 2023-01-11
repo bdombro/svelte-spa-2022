@@ -1,5 +1,9 @@
 export interface RouteDef {
   /**
+   * A unique title for the route, to be used for page title and navigation
+   */
+  title: string
+  /**
    * A unique path-mask for the route, to be used for pattern matching
    *
    * Example: '/hello/:name' will match '/hello/world' and '/hello/123'
@@ -13,6 +17,8 @@ export interface RouteDef {
   exact?: boolean
   /** A function that returns a promise that resolves to a Svelte component */
   loader: () => Promise<any>
+  /** Additional info you may want to track on your route, i.e. icon, description */
+  meta?: Record<string, any>
 }
 
 export interface Route extends RouteDef {
@@ -21,7 +27,7 @@ export interface Route extends RouteDef {
   /** The unique key of this route */
   key: string
   /** Accepts path args and returns a valid path from this routes path mask */
-  toPath: (args: Record<string, string>) => string
+  toPath: (args?: Record<string, string>) => string
 }
 
 /** A map of route keys to routes */
@@ -49,7 +55,7 @@ export default class Routes<
         ...routeDef,
         isMatch: (path: string) => Routes.isMatch(path, routeDef.path, routeDef.exact),
         key: k,
-        toPath: (args: Record<string, string>) => {
+        toPath: (args = {}) => {
           return routeDef.path.replace(/:([^/]*)/g, (_, arg) => args[arg])
         },
         // @ts-expect-error: toString is not an explicit property of RouteDef
@@ -57,11 +63,6 @@ export default class Routes<
       }
       this.array.push(this.val[k as keyof T])
     })
-  }
-
-  /** Generate a valid pathname from a route's path mask */
-  path(key: keyof T, args: Record<string, string> = {}) {
-    return this.val[key].toPath(args)
   }
 
   find(path: string): RouteMatch {
