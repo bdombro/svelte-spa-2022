@@ -18,6 +18,7 @@
   updateUrl(location.href)
 
 	onMount(() => {
+    
 
     // Intercept history changes
     const pushStateOrig = history.pushState.bind(history)
@@ -46,21 +47,17 @@
     /**
      * intercept anchor tag clicks
     */
-    addEventListener('click', function linkIntercepter(e: any) {
+    function findLinkTagInParents(node: HTMLElement): any {
+      if (node?.nodeName === 'A') return node
+      if (node?.parentNode) return findLinkTagInParents(node.parentElement!)
+    }
+    addEventListener('click', (e: any) => {
       const ln = findLinkTagInParents(e.target) // aka linkNode
       if (ln?.host === location.host) {
         e.preventDefault()
-        const to = ln.pathname + ln.search
-        history.pushState(Date.now(), '', to)
-      }
-
-      function findLinkTagInParents(node: HTMLElement): any {
-        if (node?.nodeName === 'A') return node
-        if (node?.parentNode) return findLinkTagInParents(node.parentElement!)
+        history.pushState(Date.now(), '', ln.pathname + ln.search + ln.hash)
       }
     })
-
-    
   })
 </script>
 

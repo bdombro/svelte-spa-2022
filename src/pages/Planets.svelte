@@ -1,10 +1,11 @@
 <script lang="ts">
-  import type {RouteMatch} from '../@usvelte/router'
+  import {goto, type RouteMatch} from '../@usvelte/router'
   import staleWhileRefresh from '../@usvelte/swr';
   import * as sw from '../swapi'
   import Error from '../components/error.svelte'
   
   export let route: RouteMatch
+
   $: page = route.args.page
 
   $: data = staleWhileRefresh({
@@ -17,13 +18,12 @@
 <h1>Page: {page}</h1>
 <button on:click={() => $data.refresh()} disabled={!!$data.promise}>Refetch</button>
 <button disabled={page === '1'} on:click={() => {
-  // TODO: Need a more elegant way to do this
-  history.pushState(Date.now(), '', route.toPath({ page: `${Number(page) - 1}`}))
+  goto(route.toPath({ page: `${Number(page) - 1}`}))
 }}>
   Prior Page
 </button>
 <button on:click={() => {
-  history.pushState(Date.now(), '', route.toPath({ page: `${Number(page) + 1}`}))
+  goto(route.toPath({ page: `${Number(page) + 1}`}))
 }}>
   Next Page
 </button>

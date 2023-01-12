@@ -1,7 +1,9 @@
 /**
  *
- * staleWhileRefresh: a tiny async resolver that displays a cached version (if available) of the
+ * staleWhileRefresh: a tiny (600B) async resolver that displays a cached version (if available) of the
  * callback until the callback resolves.
+ *
+ * Tiny: only 600 bytes when bundled with Svelte + Vite
  *
  */
 
@@ -18,11 +20,11 @@ type ThenArg<T> = T extends PromiseLike<infer U> ? U : T
 export interface CacheVal<T extends P> {
   /** A Normal JS error that is populated on error */
   error?: Error
-  /** Any outstanding promise for updating this cache item */
+  /** Any outstanding promise for fetching new data */
   promise?: Promise<Store<T>>
   /** The last time this cache item was refreshed */
   refreshedAt?: number
-  /** The result of the fetcher */
+  /** The latest result from the fetcher */
   result?: ReturnTypeP<T>
 }
 
@@ -30,7 +32,7 @@ export interface CacheVal<T extends P> {
 // type Refresher<T extends P> = (propsNext?: Parameters<T>) => Promise<State<T>>
 
 /**
- * The return type of staleWhileRefresh
+ * The value stored in the Svelte store, which is returned by staleWhileRefresh
  *
  * @param refresh - A callback that will refresh the UI, call the fetcher, and update cache
  */
@@ -39,10 +41,12 @@ interface State<T extends P> extends CacheVal<T> {
    * A callback that will refresh the UI, call the fetcher, and update cache
    *
    * @param propsNext - optional props to pass to the callback. If not provided, the prior props will be re-used
+   * @returns the fetcher store
    */
   refresh: (propsNext?: Parameters<T>) => Store<T>
 }
 
+/** A Svelte store to track the state of staleWhileRefresh and is returned by the call */
 type Store<T extends P> = Writable<State<T>>
 
 /**
@@ -63,12 +67,13 @@ const stringify = (obj: any) => {
 }
 
 /**
- * A cache of all the promises that are in-flight. These do no serialize to localStorage so store seperately
+ * A cache of all the promises that are in-flight. These do not serialize to localStorage so store seperately
  */
 const promiseCache = new Map<string, Promise<Store<any>>>()
 
 /**
- * A cache of all the data that is being or has been fetched
+ * A wrapper around localCache and promiseCache
+ * TODO: Coudl reduce flie size by combining with _update?
  */
 const cache = {
   get(key: string): CacheVal<any> | undefined {
@@ -113,25 +118,32 @@ globalThis.swrI =
  * - UX: no flickering, no waiting if cached, enables native scroll restoration
  *
  * @param fetcher - an async callback that returns data. *Data be JSONable*
- * @param onUpdate - a callback that's called with the data, everytime the data changes
  * @param props - initial props to pass to the callback (only if callback has arguments)
- * TODO: polling and offline check
- * @param pollInterval - a number in milliseconds to auto-refresh the data
  *
- * @returns refresh - A callback that will refresh the UI, call the fetcher, and update cache
+ * @returns A Svelte store to track the state of staleWhileRefresh and is returned by the call
  *
  * @example
  * ```ts
  * <script lang="ts">
- *  import staleWhileRefresh from 'stale-while-refresh'
+ *  import staleWhileRefresh from '@usvelte/swr'
  *
- *  let data: ReturnTypeP<typeof swr.refresh>
- *  const swr = staleWhileRefresh({
- *    fetcher: (page: string) => sw.Planets.getPage(Number(page)),
- *    onUpdate: (next) => data = next,
- *    props: page
+ *  export let page: string
+ *
+ *  $: swr = staleWhileRefresh({
+ *    fetcher: (_page: string) => sw.Planets.getPage(Number(_page)),
+ *    props: [page]
  *  })
- *  afterUpdate(() => page && swr.refresh(page))
+ * </script>
+ *
+ * {#if $data.result}
+ *  <pre>
+ *    {JSON.stringify($data.result, null, 2)}
+ *  </pre>
+ * {:else if $data.error}
+ *   <Error error={$data.error} />
+ * {:else}
+ *   <p>Loading...</p>
+ * {/if}
  * ```
  */
 function staleWhileRefresh<T extends P>(p: {
@@ -162,11 +174,11 @@ function staleWhileRefresh<T extends P>({fetcher, props}: {fetcher: T; props: Pa
       return store
     }
 
-    const p = fetcher(propsNext)
+    hit.promise = fetcher(propsNext)
       .then((_data) => _onUpdate({result: _data, refreshedAt: Date.now()}))
       .catch((e) => _onUpdate({error: e}))
 
-    return _onUpdate({...hit, promise: p})
+    return _onUpdate(hit)
   }
   return refresh(...props)
 }

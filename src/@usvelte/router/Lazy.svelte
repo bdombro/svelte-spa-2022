@@ -1,5 +1,4 @@
 <script lang="ts">
-  // import { afterUpdate } from 'svelte';
   import { writable } from 'svelte/store';
 	
   /**
