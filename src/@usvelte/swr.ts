@@ -5,6 +5,8 @@
  *
  */
 
+import {writable, type Writable} from 'svelte/store'
+
 /** A generic promise */
 type P = (...args: any[]) => Promise<any>
 type PNoArgs = () => Promise<any>
@@ -13,11 +15,11 @@ type ReturnTypeP<T extends P> = ThenArg<ReturnType<T>>
 type ThenArg<T> = T extends PromiseLike<infer U> ? U : T
 
 /** The state of a fetcher */
-export type State<T extends P> = {
+export interface CacheVal<T extends P> {
   /** A Normal JS error that is populated on error */
   error?: Error
   /** Any outstanding promise for updating this cache item */
-  promise?: Promise<State<T>>
+  promise?: Promise<Store<T>>
   /** The last time this cache item was refreshed */
   refreshedAt?: number
   /** The result of the fetcher */
@@ -25,21 +27,23 @@ export type State<T extends P> = {
 }
 
 /** A callback that will refresh the UI, call the fetcher, and update cache */
-type Refresher<T extends P> = (propsNext?: Parameters<T>[0]) => Promise<State<T>>
+// type Refresher<T extends P> = (propsNext?: Parameters<T>) => Promise<State<T>>
 
 /**
  * The return type of staleWhileRefresh
  *
  * @param refresh - A callback that will refresh the UI, call the fetcher, and update cache
  */
-type StaleWhileRefreshReturnType<T extends P> = {
+interface State<T extends P> extends CacheVal<T> {
   /**
    * A callback that will refresh the UI, call the fetcher, and update cache
    *
    * @param propsNext - optional props to pass to the callback. If not provided, the prior props will be re-used
    */
-  refresh: Refresher<T>
+  refresh: (propsNext?: Parameters<T>) => Store<T>
 }
+
+type Store<T extends P> = Writable<State<T>>
 
 /**
  * A safe stringify that removes circular references
@@ -61,19 +65,19 @@ const stringify = (obj: any) => {
 /**
  * A cache of all the promises that are in-flight. These do no serialize to localStorage so store seperately
  */
-const promiseCache = new Map<string, Promise<State<any>>>()
+const promiseCache = new Map<string, Promise<Store<any>>>()
 
 /**
  * A cache of all the data that is being or has been fetched
  */
 const cache = {
-  get(key: string): State<any> | undefined {
+  get(key: string): CacheVal<any> | undefined {
     let m = {promise: promiseCache.get(key)}
     const ls = localStorage.getItem('swr:' + key)
     if (ls) m = {...JSON.parse(ls), ...m}
     return m
   },
-  set(key: string, value: State<any>) {
+  set(key: string, value: CacheVal<any>) {
     const {promise, ...rest} = value
     if (promise) promiseCache.set(key, promise)
     else {
@@ -89,7 +93,7 @@ globalThis.swrI =
   setInterval(() => {
     ;(Object.entries(localStorage) as [string, string][])
       .filter(([k]) => k.startsWith('swr:'))
-      .map(([k, v]) => [k, JSON.parse(v)] as [string, State<any>])
+      .map(([k, v]) => [k, JSON.parse(v)] as [string, CacheVal<any>])
       .sort((a, b) => a[1].refreshedAt + b[1].refreshedAt)
       .slice(100)
       .forEach(([k, v], i) => {
@@ -110,7 +114,7 @@ globalThis.swrI =
  *
  * @param fetcher - an async callback that returns data. *Data be JSONable*
  * @param onUpdate - a callback that's called with the data, everytime the data changes
- * @param initialProps - initial props to pass to the callback (only if callback has arguments)
+ * @param props - initial props to pass to the callback (only if callback has arguments)
  * TODO: polling and offline check
  * @param pollInterval - a number in milliseconds to auto-refresh the data
  *
@@ -125,7 +129,7 @@ globalThis.swrI =
  *  const swr = staleWhileRefresh({
  *    fetcher: (page: string) => sw.Planets.getPage(Number(page)),
  *    onUpdate: (next) => data = next,
- *    initialProps: page
+ *    props: page
  *  })
  *  afterUpdate(() => page && swr.refresh(page))
  * ```
@@ -133,54 +137,38 @@ globalThis.swrI =
 function staleWhileRefresh<T extends P>(p: {
   /** An async callback that returns data. *Data must be JSONable* */
   fetcher: T
-  /** a callback that's called with the data, everytime the data changes */
-  onUpdate: any
   /** initial props to pass to the callback (only if callback has arguments) */
-  initialProps: Parameters<T>[0]
+  props: Parameters<T>
 }): /**
  * The return type of staleWhileRefresh
  *
  * @param refresh - A callback that will refresh the UI, call the fetcher, and update cache
  */
-StaleWhileRefreshReturnType<T>
-function staleWhileRefresh<T extends PNoArgs>(p: {fetcher: T; onUpdate: any}): StaleWhileRefreshReturnType<T>
-function staleWhileRefresh<T extends P>({
-  fetcher,
-  onUpdate,
-  initialProps,
-}: {
-  fetcher: T
-  onUpdate: any
-  initialProps: Parameters<T>[0]
-}): StaleWhileRefreshReturnType<T> {
-  let lastProps = initialProps
-  const refresh: Refresher<T> = (propsNext) => {
-    if (propsNext === undefined) propsNext = lastProps
-    else lastProps = propsNext
+Store<T>
+function staleWhileRefresh<T extends PNoArgs>(p: {fetcher: T}): Store<T>
+function staleWhileRefresh<T extends P>({fetcher, props}: {fetcher: T; props: Parameters<T>}): Store<T> {
+  let store = writable<State<T>>({} as any)
+  const refresh = (...propsNext): Store<T> => {
     let cacheKey = stringify(propsNext) + fetcher.toString()
     const hit = cache.get(cacheKey)
     if (hit?.promise || (hit?.refreshedAt && Date.now() - hit.refreshedAt < 1000)) {
-      return (async () => hit)()
+      store.set({...hit, refresh})
+      return store
     }
 
-    const _onUpdate = (next: State<T>) => {
-      if (lastProps !== propsNext) return
+    const _onUpdate = (next: CacheVal<T>) => {
       cache.set(cacheKey, next as any)
-      onUpdate(next)
-      return next
+      store.set({...next, refresh})
+      return store
     }
 
     const p = fetcher(propsNext)
       .then((_data) => _onUpdate({result: _data, refreshedAt: Date.now()}))
       .catch((e) => _onUpdate({error: e}))
 
-    _onUpdate({result: hit?.result, promise: p, refreshedAt: hit?.refreshedAt})
-    return p
+    return _onUpdate({...hit, promise: p})
   }
-  // Call refresh to set initial data
-  refresh(initialProps)
-
-  return {refresh}
+  return refresh(props)
 }
 
 export default staleWhileRefresh
