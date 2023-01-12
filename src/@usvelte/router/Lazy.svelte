@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { afterUpdate } from 'svelte';
+  // import { afterUpdate } from 'svelte';
+  import { writable } from 'svelte/store';
 	
   /**
    * A unique cache key that identifies the component to be loaded
@@ -18,30 +19,22 @@
   export let props = {}
 
   /**
-   * The loaded component or undefined
+   * The loaded component: undefined while loading
    */
-  let Loaded = undefined
-  let keyLast = ''
-  
-  
-  const load = () => {
-    if (key !== keyLast) {
-      keyLast = key
+  $: Loaded = (() => {
+      const store = writable<any>(undefined)
       if(!globalThis.lazyCache) globalThis.lazyCache = {}
       if (globalThis.lazyCache[key]) {
-        Loaded = globalThis.lazyCache[key]
-        return
+        store.set(globalThis.lazyCache[key])
       } else {
-        loader().then((module) => {
-          Loaded = module.default
+        loader().then(({default: Loaded}) => {
+          store.set(Loaded)
           globalThis.lazyCache[key] = Loaded
         })
       }
-    }
-  }
-  load()
-  afterUpdate(load);
+      return store
+  })()
 
 </script>
 
-<svelte:component this={Loaded} {...props}/>
+<svelte:component this={$Loaded} {...props}/>

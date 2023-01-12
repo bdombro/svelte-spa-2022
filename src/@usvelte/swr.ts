@@ -157,6 +157,7 @@ function staleWhileRefresh<T extends P>({fetcher, props}: {fetcher: T; props: Pa
     }
 
     const _onUpdate = (next: CacheVal<T>) => {
+      console.log('onUpdate', propsNext, location.pathname)
       cache.set(cacheKey, next as any)
       store.set({...next, refresh})
       return store
@@ -168,7 +169,7 @@ function staleWhileRefresh<T extends P>({fetcher, props}: {fetcher: T; props: Pa
 
     return _onUpdate({...hit, promise: p})
   }
-  return refresh(props)
+  return refresh(...props)
 }
 
 export default staleWhileRefresh
