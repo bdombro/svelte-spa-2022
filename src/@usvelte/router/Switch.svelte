@@ -2,18 +2,20 @@
   import { onMount } from 'svelte';
   import Lazy from './Lazy.svelte'
   import type Routes from './Routes'
-  import type {RouteMatch} from './Routes'
 
   export let routes: InstanceType<typeof Routes>
   
-  let path: string, route: RouteMatch
+  // let path: string, route: RouteMatch
+  let state: {key: string; loader: any; props: any }
 
-  function updatePath(next: string) {
-    if (next === path) return
-    path = next
-    route = routes.find(path)
+  function updateUrl(url: string) {
+    const urlObj = new URL(url)
+    const route = routes.find(urlObj.pathname)
+    const qs = Object.fromEntries(urlObj.searchParams)
+    route.args = {...route.args, ...qs}
+    state = { key: route.key, loader: route.loader, props: {route} }
   }
-  updatePath(location.pathname)
+  updateUrl(location.href)
 
 	onMount(() => {
 
@@ -22,10 +24,13 @@
     const replaceStateOrig = history.replaceState.bind(history)
     history.pushState = function(date, unused, url: string) {
       if (url[0] === '/') {
-        const urlObj = new URL(`http://a${url}`)
+        url = location.origin + url
+      }
+      const urlObj = new URL(url)
+      if (urlObj.origin === location.origin) {
         const pushOrReplace = urlObj.hash === '#replace' ? replaceStateOrig : pushStateOrig
         pushOrReplace(date, unused, url)
-        updatePath(urlObj.pathname)
+        updateUrl(url)
         globalThis?.scrollTo(0, 0)
       } else {
         pushStateOrig(date, unused, url)
@@ -35,7 +40,7 @@
       history.pushState(date, unused, url + '#replace')
     }
     addEventListener('popstate', () => {
-      updatePath(location.pathname)
+      updateUrl(location.pathname)
     })
 
     /**
@@ -59,4 +64,4 @@
   })
 </script>
 
-<Lazy key={route.key} loader={route.loader} props={route.args}/>
+<Lazy {...state} />

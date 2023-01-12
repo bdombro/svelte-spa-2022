@@ -6,7 +6,7 @@ export const routes = new Routes({
     loader: () => import('./pages/Index.svelte'),
   },
   hello: {
-    title: 'Hello',
+    title: 'Hello Page',
     path: '/hello/:name',
     loader: () => import('./pages/Hello.svelte'),
   },

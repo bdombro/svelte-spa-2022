@@ -65,7 +65,7 @@ export default class Routes<
     })
   }
 
-  find(path: string): RouteMatch {
+  public find(path: string): RouteMatch {
     for (const route of this.array) {
       const args = route.isMatch(path)
       if (args) {
