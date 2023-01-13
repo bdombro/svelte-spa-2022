@@ -41,7 +41,7 @@
       history.pushState(date, unused, url + '#replace')
     }
     addEventListener('popstate', () => {
-      updateUrl(location.pathname)
+      updateUrl(location.href)
     })
 
     /**

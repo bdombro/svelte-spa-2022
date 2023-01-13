@@ -21,9 +21,9 @@ export interface CacheVal<T extends P> {
   /** A Normal JS error that is populated on error */
   error?: Error
   /** Any outstanding promise for fetching new data */
-  promise?: Promise<Store<T>>
+  p?: ReturnType<T>
   /** The last time this cache item was refreshed */
-  refreshedAt?: number
+  t?: number
   /** The latest result from the fetcher */
   result?: ReturnTypeP<T>
 }
@@ -38,12 +38,16 @@ export interface CacheVal<T extends P> {
  */
 interface State<T extends P> extends CacheVal<T> {
   /**
+   * A boolean that is true if the fetcher is in-flight
+   */
+  loading: boolean
+  /**
    * A callback that will refresh the UI, call the fetcher, and update cache
    *
    * @param propsNext - optional props to pass to the callback. If not provided, the prior props will be re-used
    * @returns the fetcher store
    */
-  refresh: (propsNext?: Parameters<T>) => Store<T>
+  refresh: (propsNext?: Parameters<T>) => ReturnType<T>
 }
 
 /** A Svelte store to track the state of staleWhileRefresh and is returned by the call */
@@ -69,24 +73,24 @@ const stringify = (obj: any) => {
 /**
  * A cache of all the promises that are in-flight. These do not serialize to localStorage so store seperately
  */
-const promiseCache = new Map<string, Promise<Store<any>>>()
+const pCache = new Map<string, Promise<Store<any>>>()
 
 /**
- * A wrapper around localCache and promiseCache
+ * A wrapper around localCache and pCache
  * TODO: Coudl reduce flie size by combining with _update?
  */
 const cache = {
   get(key: string): CacheVal<any> | undefined {
-    let m = {promise: promiseCache.get(key)}
+    let m = {p: pCache.get(key)}
     const ls = localStorage.getItem('swr:' + key)
     if (ls) m = {...JSON.parse(ls), ...m}
     return m
   },
   set(key: string, value: CacheVal<any>) {
-    const {promise, ...rest} = value
-    if (promise) promiseCache.set(key, promise)
+    const {p, ...rest} = value
+    if (p) pCache.set(key, p)
     else {
-      promiseCache.delete(key)
+      pCache.delete(key)
       localStorage.setItem('swr:' + key, stringify(rest))
     }
   },
@@ -99,7 +103,7 @@ globalThis.swrI =
     ;(Object.entries(localStorage) as [string, string][])
       .filter(([k]) => k.startsWith('swr:'))
       .map(([k, v]) => [k, JSON.parse(v)] as [string, CacheVal<any>])
-      .sort((a, b) => a[1].refreshedAt + b[1].refreshedAt)
+      .sort((a, b) => a[1].t + b[1].t)
       .slice(100)
       .forEach(([k, v], i) => {
         localStorage.removeItem(k)
@@ -160,27 +164,38 @@ Store<T>
 function staleWhileRefresh<T extends PNoArgs>(p: {fetcher: T}): Store<T>
 function staleWhileRefresh<T extends P>({fetcher, props}: {fetcher: T; props: Parameters<T>}): Store<T> {
   let store = writable<State<T>>({} as any)
-  const refresh = (...propsNext): Store<T> => {
+  const refresh = (...propsNext): ReturnType<T> => {
     let cacheKey = stringify(propsNext) + fetcher.toString()
-    const hit = cache.get(cacheKey)
-    if (hit?.promise || (hit?.refreshedAt && Date.now() - hit.refreshedAt < 1000)) {
-      store.set({...hit, refresh})
-      return store
+    const hit = cache.get(cacheKey) as CacheVal<T>
+    if (hit?.p) {
+      return hit.p
+    }
+    if (hit?.result && hit?.t && Date.now() - hit.t < 1000) {
+      // @ts-expect-error - TS doesn't like this, but it works
+      return (async () => hit.result)()
     }
 
-    const _onUpdate = (next: CacheVal<T>) => {
-      cache.set(cacheKey, next as any)
-      store.set({...next, refresh})
-      return store
+    const onUpdate = (res: CacheVal<T>) => {
+      cache.set(cacheKey, res)
+      store.set({...res, refresh, loading: !!res?.p})
     }
 
-    hit.promise = fetcher(propsNext)
-      .then((_data) => _onUpdate({result: _data, refreshedAt: Date.now()}))
-      .catch((e) => _onUpdate({error: e}))
+    // @ts-expect-error - TS is having a hard time infering fetcher return type for some reason
+    hit.p = fetcher(propsNext)
+      .then((r) => {
+        onUpdate({result: r, t: Date.now()})
+        return r
+      })
+      .catch((e) => {
+        onUpdate({error: e, t: Date.now()})
+        throw e
+      })
 
-    return _onUpdate(hit)
+    onUpdate(hit)
+    return hit.p
   }
-  return refresh(...props)
+  refresh(...props)
+  return store
 }
 
 export default staleWhileRefresh

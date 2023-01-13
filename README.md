@@ -5,7 +5,7 @@ This template should help get you started developing a SPA application with Svel
 **Features**
 
 - Produces a pure SPA app - no SSR or server required
-- Tiny: fully featured bundles start at ~6.4kb
+- Tiny: fully featured bundles start at <7kb
 
 **Dependencies**
 

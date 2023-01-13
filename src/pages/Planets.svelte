@@ -16,7 +16,7 @@
 </script>
 
 <h1>Page: {page}</h1>
-<button on:click={() => $data.refresh()} disabled={!!$data.promise}>Refetch</button>
+<button on:click={() => $data.refresh()} disabled={$data.loading}>Refetch</button>
 <button disabled={page === '1'} on:click={() => {
   goto(route.toPath({ page: `${Number(page) - 1}`}))
 }}>
@@ -28,9 +28,14 @@
   Next Page
 </button>
 {#if $data.result}
-  <pre>
-    {JSON.stringify($data.result, null, 2)}
-  </pre>
+  {#each $data.result as planet}
+    <h3>{planet.name}</h3>
+    <ul>
+    {#each Object.entries(planet).slice(1) as [key, value]}
+      <li>{key}: {value}</li>
+    {/each}
+    </ul>
+  {/each}
 {:else if $data.error}
   <Error error={$data.error} />
 {:else}

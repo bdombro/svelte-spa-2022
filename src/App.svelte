@@ -9,7 +9,7 @@
   ]
 </script>
 
-<header style="height: 50px; ">
+<header>
   <nav>
     {#each navitems as item}
       <a href={item.path}>{item.name}</a>
@@ -22,6 +22,9 @@
 </main>
 
 <style>
+  header {
+		height: 50px;
+	}
   nav {
     background: lightgray;
     inset: 10px 4px auto;
