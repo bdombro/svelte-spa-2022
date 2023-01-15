@@ -1,10 +1,12 @@
 <script lang="ts">
   import {Switch} from './@usvelte/router'
-  import { routes as r } from './routes'
+  import { routes } from './routes'
+  import Error from './Error.svelte'
+  const p = routes.val
   const navitems = [
-    {name: r.val.index.title, path: r.val.index.toPath()},
-    {name: r.val.hello.title, path: r.val.hello.toPath({ name: 'world' })},
-    {name: r.val.planets.title, path: r.val.planets.toPath({ page: '1' })},
+    {name: 'Home', path: p.index.toPath()},
+    {name: 'Hello', path: p.hello.toPath({ name: 'world' })},
+    {name: 'Planets', path: p.planets.toPath({ page: '1' })},
     {name: '404', path: '/does-not-exist'},
   ]
 </script>
@@ -18,7 +20,8 @@
 </header>
 
 <main>
-  <Switch routes={r} />
+  <Switch routes={routes} />
+  <Error />
 </main>
 
 <style>

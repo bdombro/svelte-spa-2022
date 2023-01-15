@@ -2,7 +2,6 @@
   import {goto, type RouteMatch} from '../@usvelte/router'
   import staleWhileRefresh from '../@usvelte/swr';
   import * as sw from '../swapi'
-  import Error from '../components/error.svelte'
   
   export let route: RouteMatch
 
@@ -36,8 +35,4 @@
     {/each}
     </ul>
   {/each}
-{:else if $data.error}
-  <Error error={$data.error} />
-{:else}
-  <p>Loading...</p>
 {/if}

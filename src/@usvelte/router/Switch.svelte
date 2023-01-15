@@ -30,8 +30,8 @@
       const urlObj = new URL(url)
       if (urlObj.origin === location.origin) {
         const pushOrReplace = urlObj.hash === '#replace' ? replaceStateOrig : pushStateOrig
-        pushOrReplace(date, unused, url)
         updateUrl(url)
+        pushOrReplace(date, unused, url)
         globalThis?.scrollTo(0, 0)
       } else {
         pushStateOrig(date, unused, url)
@@ -53,7 +53,7 @@
     }
     addEventListener('click', (e: any) => {
       const ln = findLinkTagInParents(e.target) // aka linkNode
-      if (ln?.host === location.host) {
+      if (ln){
         e.preventDefault()
         history.pushState(Date.now(), '', ln.pathname + ln.search + ln.hash)
       }

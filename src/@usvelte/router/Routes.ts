@@ -1,20 +1,11 @@
 export interface RouteDef {
   /**
-   * A unique title for the route, to be used for page title and navigation
-   */
-  title: string
-  /**
    * A unique path-mask for the route, to be used for pattern matching
    *
    * Example: '/hello/:name' will match '/hello/world' and '/hello/123'
+   * Example: '/hello/*' will match '/hello/world' and '/hello/world/green'
    */
   path: string
-  /**
-   * If true, the route will only match if the path is exactly the same as the path-mask
-   *
-   * Example: '/hello/:name' will match '/hello/world' but not '/hello/world/123'
-   */
-  exact?: boolean
   /** A function that returns a promise that resolves to a Svelte component */
   loader: () => Promise<any>
   /** Additional info you may want to track on your route, i.e. icon, description */
@@ -41,6 +32,12 @@ type RoutesArray = Route[]
 /** A route with the matching args */
 export type RouteMatch = Route & {args?: Record<string, string>}
 
+/**
+ * A class to manage and negotiate url paths
+ *
+ * Accepts a map of route keys to route definitions. Order by priority because
+ * the first match will be returned when querying.
+ */
 export default class Routes<
   T extends {
     /** key: The unique key of a route */
@@ -49,6 +46,12 @@ export default class Routes<
 > {
   val: RoutesVal<T> = {} as any
   array: RoutesArray = []
+  /**
+   * A class to manage and negotiate url paths
+   *
+   * Accepts a map of route keys to route definitions. Order by priority because
+   * the first match will be returned when querying.
+   */
   constructor(routes: T) {
     Object.entries(routes).forEach(([k, routeDef]) => {
       this.val[k as keyof T] = {
@@ -65,6 +68,9 @@ export default class Routes<
     })
   }
 
+  /**
+   * Returns the first route that matches the path
+   */
   public find(path: string): RouteMatch {
     for (const route of this.array) {
       const args = route.isMatch(path)

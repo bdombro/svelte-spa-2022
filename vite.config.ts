@@ -34,7 +34,7 @@ export default defineConfig({
     rollupOptions: {
       output: {
         // Disable code-splitting if so desired
-        // manualChunks: () => 'all',
+        manualChunks: () => 'all',
       },
     },
   },

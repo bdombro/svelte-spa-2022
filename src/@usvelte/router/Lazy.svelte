@@ -19,16 +19,20 @@
 
   /**
    * The loaded component: undefined while loading
+   * 
+   * Uses a cache so that recall is synchronous. If didn't,
+   * there will be flicker and browser scroll restoration
+   * would fail.
    */
   $: Loaded = (() => {
       const store = writable<any>(undefined)
-      if(!globalThis.lazyCache) globalThis.lazyCache = {}
-      if (globalThis.lazyCache[key]) {
-        store.set(globalThis.lazyCache[key])
+      if(!globalThis.lc) globalThis.lc = {}
+      if (globalThis.lc[key]) {
+        store.set(globalThis.lc[key])
       } else {
         loader().then(({default: Loaded}) => {
           store.set(Loaded)
-          globalThis.lazyCache[key] = Loaded
+          globalThis.lc[key] = Loaded
         })
       }
       return store
