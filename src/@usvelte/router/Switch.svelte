@@ -24,7 +24,8 @@
     const pushStateOrig = history.pushState.bind(history)
     const replaceStateOrig = history.replaceState.bind(history)
     history.pushState = function(date, unused, url: string) {
-      if (url[0] === '/') {
+      if (!url.startsWith('http')) {
+        if (url[0] !== '/') url = '/' + url
         url = location.origin + url
       }
       const urlObj = new URL(url)
