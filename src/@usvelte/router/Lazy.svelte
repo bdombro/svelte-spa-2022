@@ -24,20 +24,28 @@
    * there will be flicker and browser scroll restoration
    * would fail.
    */
-  $: Loaded = (() => {
-      const store = writable<any>(undefined)
-      if(!globalThis.lc) globalThis.lc = {}
-      if (globalThis.lc[key]) {
-        store.set(globalThis.lc[key])
-      } else {
-        loader().then(({default: Loaded}) => {
-          store.set(Loaded)
-          globalThis.lc[key] = Loaded
-        })
-      }
-      return store
-  })()
+  if(!globalThis.lc) globalThis.lc = new Map()
+  let lc: Map<string, any> = globalThis.lc
+  let Loaded = writable<{ module: any, props: any}>({
+    // Default = cache. Undefined will cause flicker
+    module: lc.get(key),
+    // Store props in loaded so that we never render the prior component with next props
+    props
+  })
+  
+  $: {
+    const cached = lc.get(key)
+    if (cached) {
+      if (cached !== $Loaded?.module || props !== $Loaded?.props)
+        Loaded.set({module: cached, props})
+      // else do nothing bc already loaded
+    } else {
+      loader().then((m) => {
+        Loaded.set({module: m.default, props})
+        lc.set(key, m.default)
+      })
+    }
+  }
 
 </script>
-
-<svelte:component this={$Loaded} {...props}/>
+<svelte:component this={$Loaded?.module} {...$Loaded?.props}/>

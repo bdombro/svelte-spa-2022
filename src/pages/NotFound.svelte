@@ -1,10 +1,7 @@
 <script lang="ts">
-  import type {RouteMatch} from '../@usvelte/router'
-  export let route: RouteMatch
-  route
+  import LayoutDefault from '../components/LayoutDefault.svelte'
 </script>
 
-<h1>404 - Page not found</h1>
-
-<style>
-</style>
+<LayoutDefault>
+  <h1>404 - Page not found</h1>
+</LayoutDefault>

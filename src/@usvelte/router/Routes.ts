@@ -92,3 +92,18 @@ export default class Routes<
     return args
   }
 }
+
+/*
+
+add "stack": true to the route definition
+
+pushState() - push to custom url history stack, "historyStack"
+popState() - allow default browser behavior, and pop historyStack
+replaceState() - replace the current url in historyStack
+goto stack path and not in stack - change url to last stack matching the stack path
+goto stack path and in stack, delete all stack paths in url stack and push stack path.
+goto stack path and on stack path - do nothing
+click back button, pop the stack and change url to last stack matching the stack path, or just stack path if none.
+
+onscroll -- update cache scroll position
+*/
