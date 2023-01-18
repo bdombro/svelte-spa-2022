@@ -12,6 +12,8 @@ export interface RouteDef {
    * Example: '/hello/*' will match '/hello/world' and '/hello/world/green'
    */
   path: string
+  /** Boolean indicating if should be treated as a stack root */
+  isStack?: boolean
 }
 
 export interface Route extends RouteDef {
@@ -21,6 +23,10 @@ export interface Route extends RouteDef {
   key: string
   /** Accepts path args and returns a valid path from this routes path mask */
   toPath: (args?: Record<string, string>) => string
+  /** A reference to a stack route, if the current route is in a stack */
+  stack?: Route
+  /** A history stack if the current route is a stack */
+  stackHistory?: {url: string; scrollTop: number}[]
 }
 
 /** A map of route keys to routes */
@@ -33,6 +39,9 @@ type RoutesArray = Route[]
 
 /** A route with the matching args */
 export type RouteMatch = Route & {args?: Record<string, string>}
+
+export type RoutesClass = typeof Routes
+export type RoutesInstance = InstanceType<RoutesClass>
 
 /**
  * A class to manage and negotiate url paths
@@ -60,6 +69,7 @@ export default class Routes<
         ...routeDef,
         isMatch: (path: string) => Routes.isMatch(path, routeDef.path, routeDef.exact),
         key: k,
+        stackHistory: routeDef.isStack ? [] : undefined,
         toPath: (args = {}) => {
           return routeDef.path.replace(/:([^/]*)/g, (_, arg) => args[arg])
         },
@@ -68,11 +78,14 @@ export default class Routes<
       }
       this.array.push(this.val[k as keyof T])
     })
+    this.array
+      .filter((r) => r.isStack)
+      .forEach((r) => {
+        this.array.filter((r2) => r2.path.startsWith(r.path)).forEach((r2) => (r2.stack = r))
+      })
   }
 
-  /**
-   * Returns the first route that matches the path
-   */
+  /** Returns the first route that matches the path */
   public find(path: string): RouteMatch {
     for (const route of this.array) {
       const args = route.isMatch(path)

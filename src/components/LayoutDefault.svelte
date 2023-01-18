@@ -2,8 +2,10 @@
   import { routes } from '../routes'
   const p = routes.val
   const navitems = [
-    {name: 'Home', path: p.index.toPath()},
+    {name: 'Home', path: p.index.path},
     {name: 'Hello', path: p.hello.toPath({ name: 'world' })},
+    {name: 'Stack1', path: p.stack1.path},
+    {name: 'Stack2', path: p.stack2.path},
     {name: 'Planets', path: p.planets.toPath({ page: '1' })},
     {name: '404', path: '/does-not-exist'},
   ]

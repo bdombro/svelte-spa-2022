@@ -1,48 +1,87 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import Lazy from './Lazy.svelte'
-  import type Routes from './Routes'
+  import type { Route, RoutesInstance } from './Routes'
 
-  export let routes: InstanceType<typeof Routes>
-  
-  // let path: string, route: RouteMatch
-  let state: {key: string; loader: any; props: any }
+  export let routes: RoutesInstance
 
-  function updateUrl(url: string) {
-    const urlObj = new URL(url)
-    const route = routes.find(urlObj.pathname)
-    const qs = Object.fromEntries(urlObj.searchParams)
-    route.args = {...route.args, ...qs}
-    state = { key: route.key, loader: route.loader, props: {route} }
+  let state: { route: Route, routeProps: { route: Route, url: URL, [key: string]: any } }
+
+  function updateUrl(url: URL) {
+    let route = routes.find(url.pathname)
+    const qs = Object.fromEntries(url.searchParams)
+    state = { route, routeProps: {route: route, url, ...route.args, ...qs} }
   }
-  updateUrl(location.href)
+  updateUrl(new URL(location.href))
 
 	onMount(() => {
+    /**
+     * 
+     * 
+     * Intercept history.pushState, history.replaceState, and click events
+     * 
+     * 
+    */
     
+    /**
+     * Accepts a url string or a URL object and returns a URL object
+     */
+    function toUrlObj(urlOrPath: string | URL) {
+      if (urlOrPath instanceof URL) return urlOrPath
+      if (urlOrPath.startsWith('//')) {
+        urlOrPath = location.protocol + urlOrPath
+      }
+      if (!urlOrPath.startsWith('http')) {
+        if (urlOrPath[0] !== '/') urlOrPath = '/' + urlOrPath
+        urlOrPath = location.origin + urlOrPath
+      }
+      return new URL(urlOrPath)
+    }
 
-    // Intercept history changes
+    
     const pushStateOrig = history.pushState.bind(history)
     const replaceStateOrig = history.replaceState.bind(history)
-    history.pushState = function(date, unused, url: string) {
-      if (!url.startsWith('http')) {
-        if (url[0] !== '/') url = '/' + url
-        url = location.origin + url
+    history.pushState = function(date, unused, url) {
+      let urlObj = toUrlObj(url)
+
+      if (urlObj.hash === '#replace') {
+        return history.replaceState(date, unused, urlObj)
       }
-      const urlObj = new URL(url)
-      if (urlObj.origin === location.origin) {
-        const pushOrReplace = urlObj.hash === '#replace' ? replaceStateOrig : pushStateOrig
-        updateUrl(url)
-        pushOrReplace(date, unused, url)
-        globalThis?.scrollTo(0, 0)
-      } else {
-        pushStateOrig(date, unused, url)
+
+      if (urlObj.origin !== location.origin) {
+        return pushStateOrig(date, unused, urlObj)
       }
+
+      let scrollTo = 0
+      let route = routes.find(urlObj.pathname)
+
+      if (route.isStack && route.stackHistory.length) {
+        if (state.route.stack?.key === route.key) {
+          route.stackHistory = []
+        } else {
+          const recall = route.stackHistory[route.stackHistory.length - 1]
+          urlObj = new URL(recall.url)
+          scrollTo = recall.scrollTop
+        }
+      }
+      
+      state.route.stack?.stackHistory.push({url: location.href, scrollTop: window.scrollY})
+      
+      updateUrl(urlObj)
+      pushStateOrig(date, unused, urlObj)
+      window.scrollTo(0, scrollTo)
     }
     history.replaceState = function(date, unused, url) {
-      history.pushState(date, unused, url + '#replace')
+      let urlObj = toUrlObj(url)
+      state.route.stack?.stackHistory.pop()
+      state.route.stack?.stackHistory.push({url: location.href, scrollTop: window.scrollY})
+      updateUrl(urlObj)
+      replaceStateOrig(date, unused, urlObj)
     }
+
     addEventListener('popstate', () => {
-      updateUrl(location.href)
+      state.route.stack?.stackHistory.pop()
+      updateUrl(new URL(location.href))
     })
 
     /**
@@ -62,4 +101,4 @@
   })
 </script>
 
-<Lazy {...state} />
+<Lazy key={state.route.key} loader={state.route.loader} props={state.routeProps}  />
