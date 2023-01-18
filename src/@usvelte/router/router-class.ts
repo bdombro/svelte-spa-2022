@@ -72,7 +72,7 @@ function toUrlObj(urlOrPath: string | URL) {
  * Accepts a map of route keys to route definitions. Order by priority because
  * the first match will be returned when querying.
  */
-export default class Router<
+export class Router<
   T extends {
     /** key: The unique key of a route */
     [key: string]: RouteDef

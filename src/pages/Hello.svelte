@@ -1,7 +1,7 @@
 <script lang="ts">
   import type {RouteMatch} from '../@usvelte/router'
-  import LayoutDefault from '../components/LayoutDefault.svelte'
-  import Filler from '../components/Filler.svelte'
+  import LayoutDefault from '../components/layout-default.svelte'
+  import Filler from '../components/filler.svelte'
   export let route: RouteMatch
 </script>
 

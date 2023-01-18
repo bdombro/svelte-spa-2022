@@ -1,5 +1,5 @@
 <script lang="ts">
-  import LayoutDefault from '../components/LayoutDefault.svelte'
+  import LayoutDefault from '../components/layout-default.svelte'
 </script>
 
 <LayoutDefault>

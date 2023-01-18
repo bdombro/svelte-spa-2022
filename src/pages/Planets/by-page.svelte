@@ -2,7 +2,7 @@
   import type {RouteMatch} from '../../@usvelte/router'
   import staleWhileRefresh from '../../@usvelte/swr';
   import router from '../../router'
-  import LayoutDefault from '../../components/LayoutDefault.svelte'
+  import LayoutDefault from '../../components/layout-default.svelte'
   import * as sw from '../../swapi'
   
   export let route: RouteMatch

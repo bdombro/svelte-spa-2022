@@ -1,35 +1,35 @@
 import {Router} from './@usvelte/router'
 const router = new Router({
   index: {
-    loader: () => import('./pages/Index.svelte'),
+    loader: () => import('./pages/index.svelte'),
     path: '/',
   },
   hello: {
-    loader: () => import('./pages/Hello.svelte'),
+    loader: () => import('./pages/hello.svelte'),
     path: '/hello/:name',
   },
   planets: {
     isStack: true,
-    loader: () => import('./pages/Planets/Index.svelte'),
+    loader: () => import('./pages/planets/index.svelte'),
     path: '/planets',
   },
   planetsByPage: {
-    loader: () => import('./pages/Planets/ByPage.svelte'),
+    loader: () => import('./pages/planets/by-page.svelte'),
     path: '/planets/:page',
   },
   stack1: {
     isStack: true,
-    loader: () => import('./pages/StackTest.svelte'),
+    loader: () => import('./pages/stack-test.svelte'),
     path: '/stack1',
   },
   stack1Inner: {
     exact: false,
-    loader: () => import('./pages/StackTest.svelte'),
+    loader: () => import('./pages/stack-test.svelte'),
     path: '/stack1',
   },
   notFound: {
     exact: false,
-    loader: () => import('./pages/NotFound.svelte'),
+    loader: () => import('./pages/not-found.svelte'),
     path: '/',
   },
 })

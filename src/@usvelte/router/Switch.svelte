@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
-  import Lazy from './Lazy.svelte'
-  import type { RouterInstance } from './router'
+  import Lazy from './lazy.svelte'
+  import type { RouterInstance } from './router-class'
 
   export let router: RouterInstance
 
