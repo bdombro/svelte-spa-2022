@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { tick } from 'svelte';
   import { writable } from 'svelte/store';
 	
   /**
@@ -38,12 +39,14 @@
     if (cached) {
       if (cached !== $Loaded?.m || props !== $Loaded?.props)
         Loaded.set({m: cached, props})
+        tick().then(() => dispatchEvent(new Event('lazy-loaded')))
       // else do nothing bc already loaded
     } else {
       loader().then((m) => {
         if (!m) return
         Loaded.set({m, props})
         lc.set(key, m)
+        tick().then(() => dispatchEvent(new Event('lazy-loaded')))
       })
     }
   }

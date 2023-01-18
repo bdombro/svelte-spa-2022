@@ -119,9 +119,15 @@ export default class Routes<
     this.subscribers = this.subscribers.filter((l) => l !== fn)
   }
 
+  /** Navigate to a route */
   public goto(routeOrKey: Route | string, urlParams: Record<string, string> = {}) {
     const route = typeof routeOrKey === 'string' ? this.val[routeOrKey] : routeOrKey
     history.pushState(Date.now(), '', route.toPath(urlParams))
+  }
+  /** Navigate to a route by replaceState */
+  public replace(routeOrKey: Route | string, urlParams: Record<string, string> = {}) {
+    const route = typeof routeOrKey === 'string' ? this.val[routeOrKey] : routeOrKey
+    history.replaceState(Date.now(), '', route.toPath(urlParams))
   }
 
   /** Returns the first route that matches the path */
@@ -182,14 +188,16 @@ export default class Routes<
 
       this.current?.stack?.stackHistory.push({url: location.href, scrollTop: window.scrollY})
 
+      // Try to scroll to position after page has loaded
+      const doScroll = () => {
+        window.scrollTo(0, scrollTo)
+        removeEventListener('lazy-loaded', doScroll)
+      }
+      addEventListener('lazy-loaded', doScroll)
+
       this.current = route
       this.subscribers.forEach((fn) => fn(this.current))
       pushStateOrig(date, unused, urlObj)
-      // Try to scroll to position after page has loaded
-      const doScroll = () => window.scrollTo(0, scrollTo)
-      doScroll()
-      setTimeout(doScroll)
-      setTimeout(doScroll, 300)
     }
     history.replaceState = (date, unused, url) => {
       let urlObj = toUrlObj(url)
