@@ -26,9 +26,9 @@
    */
   if(!globalThis.lc) globalThis.lc = new Map()
   let lc: Map<string, any> = globalThis.lc
-  let Loaded = writable<{ module: any, props: any}>({
+  let Loaded = writable<{ m: any, props: any}>({
     // Default = cache. Undefined will cause flicker
-    module: lc.get(key),
+    m: lc.get(key),
     // Store props in loaded so that we never render the prior component with next props
     props
   })
@@ -36,16 +36,17 @@
   $: {
     const cached = lc.get(key)
     if (cached) {
-      if (cached !== $Loaded?.module || props !== $Loaded?.props)
-        Loaded.set({module: cached, props})
+      if (cached !== $Loaded?.m || props !== $Loaded?.props)
+        Loaded.set({m: cached, props})
       // else do nothing bc already loaded
     } else {
       loader().then((m) => {
-        Loaded.set({module: m.default, props})
-        lc.set(key, m.default)
+        if (!m) return
+        Loaded.set({m, props})
+        lc.set(key, m)
       })
     }
   }
 
 </script>
-<svelte:component this={$Loaded?.module} {...$Loaded?.props}/>
+<svelte:component this={$Loaded?.m?.default} {...$Loaded?.props}/>

@@ -44,6 +44,29 @@ export type RoutesClass = typeof Routes
 export type RoutesInstance = InstanceType<RoutesClass>
 
 /**
+ * Searches up the dom from an element to find an enclosing anchor tag
+ */
+function findLinkTagInParents(node: HTMLElement): any {
+  if (node?.nodeName === 'A') return node
+  if (node?.parentNode) return findLinkTagInParents(node.parentElement!)
+}
+
+/**
+ * Accepts a url string or a URL object and returns a URL object
+ */
+function toUrlObj(urlOrPath: string | URL) {
+  if (urlOrPath instanceof URL) return urlOrPath
+  if (urlOrPath.startsWith('//')) {
+    urlOrPath = location.protocol + urlOrPath
+  }
+  if (!urlOrPath.startsWith('http')) {
+    if (urlOrPath[0] !== '/') urlOrPath = '/' + urlOrPath
+    urlOrPath = location.origin + urlOrPath
+  }
+  return new URL(urlOrPath)
+}
+
+/**
  * A class to manage and negotiate url paths
  *
  * Accepts a map of route keys to route definitions. Order by priority because
@@ -57,6 +80,8 @@ export default class Routes<
 > {
   val: RoutesVal<T> = {} as any
   array: RoutesArray = []
+  current: RouteMatch
+  subscribers: ((route: RouteMatch) => any)[] = []
   /**
    * A class to manage and negotiate url paths
    *
@@ -73,8 +98,6 @@ export default class Routes<
         toPath: (urlParams = {}) => {
           return routeDef.path.replace(/:([^/]*)/g, (_, arg) => urlParams[arg])
         },
-        // @ts-expect-error: toString is not an explicit property of RouteDef
-        toString: () => routeDef.path,
       }
       this.array.push(this.val[k as keyof T])
     })
@@ -83,6 +106,22 @@ export default class Routes<
       .forEach((r) => {
         this.array.filter((r2) => r2.path.startsWith(r.path)).forEach((r2) => (r2.stack = r))
       })
+    this.hookHistory()
+  }
+
+  /** Subscribe to changes to the route */
+  public subscribe(fn: (route: RouteMatch) => any) {
+    this.subscribers.push(fn)
+    return () => this.unsubscribe(fn)
+  }
+  /** Subscribe to changes to the route */
+  public unsubscribe(fn: (route: RouteMatch) => any) {
+    this.subscribers = this.subscribers.filter((l) => l !== fn)
+  }
+
+  public goto(routeOrKey: Route | string, urlParams: Record<string, string> = {}) {
+    const route = typeof routeOrKey === 'string' ? this.val[routeOrKey] : routeOrKey
+    history.pushState(Date.now(), '', route.toPath(urlParams))
   }
 
   /** Returns the first route that matches the path */
@@ -107,19 +146,75 @@ export default class Routes<
       : false
     return urlParams
   }
+
+  /**
+   * Intercept history.pushState, history.replaceState, and click events
+   */
+  private hookHistory() {
+    const pushStateOrig = history.pushState.bind(history)
+    const replaceStateOrig = history.replaceState.bind(history)
+    this.current = this.find(new URL(location.href))
+
+    history.pushState = (date, unused, url) => {
+      let urlObj = toUrlObj(url)
+
+      if (urlObj.hash === '#replace') {
+        return history.replaceState(date, unused, urlObj)
+      }
+
+      if (urlObj.origin !== location.origin) {
+        return pushStateOrig(date, unused, urlObj)
+      }
+
+      let scrollTo = 0
+      let route = this.find(urlObj)
+
+      if (route.isStack && route.stackHistory.length) {
+        if (this.current.stack?.key === route.key) {
+          route.stackHistory = []
+        } else {
+          const recall = route.stackHistory[route.stackHistory.length - 1]
+          urlObj = new URL(recall.url)
+          scrollTo = recall.scrollTop
+          route = this.find(urlObj)
+        }
+      }
+
+      this.current?.stack?.stackHistory.push({url: location.href, scrollTop: window.scrollY})
+
+      this.current = route
+      this.subscribers.forEach((fn) => fn(this.current))
+      pushStateOrig(date, unused, urlObj)
+      // Try to scroll to position after page has loaded
+      const doScroll = () => window.scrollTo(0, scrollTo)
+      doScroll()
+      setTimeout(doScroll)
+      setTimeout(doScroll, 300)
+    }
+    history.replaceState = (date, unused, url) => {
+      let urlObj = toUrlObj(url)
+      this.current?.stack?.stackHistory.pop()
+      this.current?.stack?.stackHistory.push({url: location.href, scrollTop: window.scrollY})
+      this.current = this.find(urlObj)
+      this.subscribers.forEach((fn) => fn(this.current))
+      replaceStateOrig(date, unused, urlObj)
+    }
+
+    addEventListener('popstate', () => {
+      this.current?.stack?.stackHistory.pop()
+      this.current = this.find(new URL(location.href))
+      this.subscribers.forEach((fn) => fn(this.current))
+    })
+
+    /**
+     * intercept anchor tag clicks
+     */
+    addEventListener('click', (e: any) => {
+      const ln = findLinkTagInParents(e.target) // aka linkNode
+      if (ln) {
+        e.preventDefault()
+        history.pushState(Date.now(), '', ln.href)
+      }
+    })
+  }
 }
-
-/*
-
-add "stack": true to the route definition
-
-pushState() - push to custom url history stack, "historyStack"
-popState() - allow default browser behavior, and pop historyStack
-replaceState() - replace the current url in historyStack
-goto stack path and not in stack - change url to last stack matching the stack path
-goto stack path and in stack, delete all stack paths in url stack and push stack path.
-goto stack path and on stack path - do nothing
-click back button, pop the stack and change url to last stack matching the stack path, or just stack path if none.
-
-onscroll -- update cache scroll position
-*/

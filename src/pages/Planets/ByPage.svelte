@@ -1,8 +1,9 @@
 <script lang="ts">
-  import {goto, type RouteMatch} from '../@usvelte/router'
-  import staleWhileRefresh from '../@usvelte/swr';
-  import LayoutDefault from '../components/LayoutDefault.svelte'
-  import * as sw from '../swapi'
+  import type {RouteMatch} from '../../@usvelte/router'
+  import staleWhileRefresh from '../../@usvelte/swr';
+  import routes from '../../routes'
+  import LayoutDefault from '../../components/LayoutDefault.svelte'
+  import * as sw from '../../swapi'
   
   export let route: RouteMatch
 
@@ -19,12 +20,12 @@
   <h1>Page: {page}</h1>
   <button on:click={() => $data.refresh()} disabled={$data.loading}>Refetch</button>
   <button disabled={page === '1'} on:click={() => {
-    goto(route.toPath({ page: `${Number(page) - 1}`}))
+    routes.goto(route, { page: `${Number(page) - 1}`})
   }}>
     Prior Page
   </button>
   <button on:click={() => {
-    goto(route.toPath({ page: `${Number(page) + 1}`}))
+    routes.goto(route, { page: `${Number(page) + 1}`})
   }}>
     Next Page
   </button>

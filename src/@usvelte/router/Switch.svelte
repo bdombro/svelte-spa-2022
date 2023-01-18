@@ -1,19 +1,16 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import attach from './attach'
+  import { onDestroy, onMount } from 'svelte';
   import Lazy from './Lazy.svelte'
-  import type { RouteMatch, RoutesInstance } from './Routes'
+  import type { RoutesInstance } from './Routes'
 
   export let routes: RoutesInstance
 
-  let current: RouteMatch
-
-  const updateRoute = (route: RouteMatch) => {
-    current = route
-  }
-  updateRoute(routes.find(new URL(location.href)))
-
-	onMount(() => attach(routes, updateRoute))
+  let current = routes.find(new URL(location.href))
+  
+  let onChange = route => current = route
+	
+  onMount(() => routes.subscribe(onChange))
+  onDestroy(() => routes.unsubscribe(onChange))
 </script>
 
 <Lazy key={current.key} loader={current.loader} props={{ route: current, url: new URL(location.href)}}  />

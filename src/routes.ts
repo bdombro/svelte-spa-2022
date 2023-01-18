@@ -1,5 +1,5 @@
 import {Routes} from './@usvelte/router'
-export const routes = new Routes({
+const routes = new Routes({
   index: {
     loader: () => import('./pages/Index.svelte'),
     path: '/',
@@ -9,7 +9,12 @@ export const routes = new Routes({
     path: '/hello/:name',
   },
   planets: {
-    loader: () => import('./pages/Planets.svelte'),
+    isStack: true,
+    loader: () => import('./pages/Planets/Index.svelte'),
+    path: '/planets',
+  },
+  planetsByPage: {
+    loader: () => import('./pages/Planets/ByPage.svelte'),
     path: '/planets/:page',
   },
   stack1: {
@@ -22,19 +27,10 @@ export const routes = new Routes({
     loader: () => import('./pages/StackTest.svelte'),
     path: '/stack1',
   },
-  stack2: {
-    isStack: true,
-    loader: () => import('./pages/StackTest.svelte'),
-    path: '/stack2',
-  },
-  stack2Inner: {
-    exact: false,
-    loader: () => import('./pages/StackTest.svelte'),
-    path: '/stack2',
-  },
   notFound: {
     exact: false,
     loader: () => import('./pages/NotFound.svelte'),
     path: '/',
   },
 })
+export default routes
