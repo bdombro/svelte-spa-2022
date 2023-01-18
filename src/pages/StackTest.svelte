@@ -1,5 +1,4 @@
 <script lang="ts">
-  import type {RouteMatch} from '../@usvelte/router'
   import LayoutDefault from '../components/LayoutDefault.svelte'
   import Filler from '../components/Filler.svelte'
   export let url: URL

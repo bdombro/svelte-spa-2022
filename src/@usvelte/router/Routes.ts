@@ -22,7 +22,7 @@ export interface Route extends RouteDef {
   /** The unique key of this route */
   key: string
   /** Accepts path args and returns a valid path from this routes path mask */
-  toPath: (args?: Record<string, string>) => string
+  toPath: (urlParams?: Record<string, string>) => string
   /** A reference to a stack route, if the current route is in a stack */
   stack?: Route
   /** A history stack if the current route is a stack */
@@ -38,7 +38,7 @@ type RoutesVal<T extends Record<string, RouteDef>> = {
 type RoutesArray = Route[]
 
 /** A route with the matching args */
-export type RouteMatch = Route & {args?: Record<string, string>}
+export type RouteMatch = Route & {urlParams?: Record<string, string>}
 
 export type RoutesClass = typeof Routes
 export type RoutesInstance = InstanceType<RoutesClass>
@@ -70,8 +70,8 @@ export default class Routes<
         isMatch: (path: string) => Routes.isMatch(path, routeDef.path, routeDef.exact),
         key: k,
         stackHistory: routeDef.isStack ? [] : undefined,
-        toPath: (args = {}) => {
-          return routeDef.path.replace(/:([^/]*)/g, (_, arg) => args[arg])
+        toPath: (urlParams = {}) => {
+          return routeDef.path.replace(/:([^/]*)/g, (_, arg) => urlParams[arg])
         },
         // @ts-expect-error: toString is not an explicit property of RouteDef
         toString: () => routeDef.path,
@@ -86,25 +86,26 @@ export default class Routes<
   }
 
   /** Returns the first route that matches the path */
-  public find(path: string): RouteMatch {
+  public find(url: URL): RouteMatch {
     for (const route of this.array) {
-      const args = route.isMatch(path)
-      if (args) {
-        return {...route, args}
+      const urlParams = route.isMatch(url.pathname)
+      if (urlParams) {
+        const qs = Object.fromEntries(url.searchParams)
+        return {...route, urlParams: {...urlParams, ...qs}}
       }
     }
-    throw new Error(`No route found for path: ${path}`)
+    throw new Error(`No route found for path: ${url.pathname}`)
   }
 
-  /** Returns an object of URL args if path matches route.path, false otherwise */
+  /** Returns an object of URL params if path matches route.path, false otherwise */
   static isMatch(path: string, pathMask: string, exact = true) {
     const argRx = /:([^/]*)/g
     const urlRx = '^' + pathMask.replace(argRx, '([^/]*)') + (exact ? '$' : '')
     const match = [...path.matchAll(new RegExp(urlRx, 'gi'))]?.[0]
-    const args = match
+    const urlParams = match
       ? [...pathMask.matchAll(argRx)].reduce((acc, arg, i) => ({...acc, [arg[1]]: match[i + 1]}), {})
       : false
-    return args
+    return urlParams
   }
 }
 

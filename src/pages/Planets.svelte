@@ -6,7 +6,7 @@
   
   export let route: RouteMatch
 
-  $: page = route.args.page
+  $: page = route.urlParams.page
 
   $: data = staleWhileRefresh({
     fetcher: (_page: typeof page) => sw.Planets.getPage(Number(_page)),

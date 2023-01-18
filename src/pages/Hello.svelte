@@ -6,6 +6,6 @@
 </script>
 
 <LayoutDefault>
-  <h1>Hello, {route.args.name}.</h1>
+  <h1>Hello, {route.urlParams.name}.</h1>
   <Filler />
 </LayoutDefault>
