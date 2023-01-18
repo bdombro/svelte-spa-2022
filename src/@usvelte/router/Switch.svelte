@@ -13,4 +13,4 @@
   onDestroy(() => router.unsubscribe(onChange))
 </script>
 
-<Lazy key={current.key} loader={current.loader} props={{ route: current, url: new URL(location.href)}} onLoad={router.scrollRestore}  />
+<Lazy loader={current.loader} props={{ route: current, url: new URL(location.href)}} onLoad={router.scrollRestore}  />

@@ -3,10 +3,6 @@
   import { writable } from 'svelte/store';
 	
   /**
-   * A unique cache key that identifies the component to be loaded
-   */
-  export let key: string
-  /**
    * A callback that loads a Svelte component, i.e. 
    * ```typescript
    * () => import('./Index.svelte')`
