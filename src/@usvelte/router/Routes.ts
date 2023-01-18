@@ -191,6 +191,7 @@ export default class Routes<
       // Try to scroll to position after page has loaded
       const doScroll = () => {
         window.scrollTo(0, scrollTo)
+        setTimeout(() => window.scrollTo(0, scrollTo), 300)
         removeEventListener('lazy-loaded', doScroll)
       }
       addEventListener('lazy-loaded', doScroll)

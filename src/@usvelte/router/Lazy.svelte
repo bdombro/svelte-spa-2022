@@ -27,18 +27,19 @@
    */
   if(!globalThis.lc) globalThis.lc = new Map()
   let lc: Map<string, any> = globalThis.lc
-  let Loaded = writable<{ m: any, props: any}>({
-    // Default = cache. Undefined will cause flicker
-    m: lc.get(key),
-    // Store props in loaded so that we never render the prior component with next props
-    props
-  })
+  let Loaded = writable<{
+    /** A loaded module. Default = cache. Without cache, back scroll restore would fail. */
+    m: any,
+    /** Props for the module */
+    p: any
+  }
+  >({m: lc.get(key), p: props})
   
   $: {
     const cached = lc.get(key)
     if (cached) {
-      if (cached !== $Loaded?.m || props !== $Loaded?.props)
-        Loaded.set({m: cached, props})
+      if (cached !== $Loaded?.m || props !== $Loaded?.p)
+        Loaded.set({m: cached, p: props})
         tick().then(() => dispatchEvent(new Event('lazy-loaded')))
       // else do nothing bc already loaded
     } else {
@@ -52,4 +53,4 @@
   }
 
 </script>
-<svelte:component this={$Loaded?.m?.default} {...$Loaded?.props}/>
+<svelte:component this={$Loaded?.m?.default} {...$Loaded?.p}/>
