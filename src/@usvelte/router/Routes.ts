@@ -78,9 +78,26 @@ export default class Routes<
     [key: string]: RouteDef
   },
 > {
-  val: RoutesVal<T> = {} as any
+  /** An array of all the registered routes */
   array: RoutesArray = []
-  current: RouteMatch
+  /** A map of all the registered routes */
+  val: RoutesVal<T> = {} as any
+  /** The current route */
+  // current: RouteMatch
+  /** The previous route */
+  // previous: RouteMatch & {scrollTop: number}
+
+  /** Custom history so we can restore scroll on back */
+  history: {route: Route; url: string; scrollTop: number}[] = []
+
+  get current() {
+    return {route: this.find(new URL(location.href)), url: location.href, scrollTop: window.scrollY}
+  }
+  get previous() {
+    return this.history.at(-1)
+  }
+
+  /** An array of onChange callbacks, aka subscribers */
   subscribers: ((route: RouteMatch) => any)[] = []
   /**
    * A class to manage and negotiate url paths
@@ -110,28 +127,28 @@ export default class Routes<
   }
 
   /** Subscribe to changes to the route */
-  public subscribe(fn: (route: RouteMatch) => any) {
+  public subscribe = (fn: (route: RouteMatch) => any) => {
     this.subscribers.push(fn)
     return () => this.unsubscribe(fn)
   }
   /** Subscribe to changes to the route */
-  public unsubscribe(fn: (route: RouteMatch) => any) {
+  public unsubscribe = (fn: (route: RouteMatch) => any) => {
     this.subscribers = this.subscribers.filter((l) => l !== fn)
   }
 
   /** Navigate to a route */
-  public goto(routeOrKey: Route | string, urlParams: Record<string, string> = {}) {
+  public goto = (routeOrKey: Route | string, urlParams: Record<string, string> = {}) => {
     const route = typeof routeOrKey === 'string' ? this.val[routeOrKey] : routeOrKey
     history.pushState(Date.now(), '', route.toPath(urlParams))
   }
   /** Navigate to a route by replaceState */
-  public replace(routeOrKey: Route | string, urlParams: Record<string, string> = {}) {
+  public replace = (routeOrKey: Route | string, urlParams: Record<string, string> = {}) => {
     const route = typeof routeOrKey === 'string' ? this.val[routeOrKey] : routeOrKey
     history.replaceState(Date.now(), '', route.toPath(urlParams))
   }
 
   /** Returns the first route that matches the path */
-  public find(url: URL): RouteMatch {
+  public find = (url: URL): RouteMatch => {
     for (const route of this.array) {
       const urlParams = route.isMatch(url.pathname)
       if (urlParams) {
@@ -143,7 +160,7 @@ export default class Routes<
   }
 
   /** Returns an object of URL params if path matches route.path, false otherwise */
-  static isMatch(path: string, pathMask: string, exact = true) {
+  static isMatch = (path: string, pathMask: string, exact = true) => {
     const argRx = /:([^/]*)/g
     const urlRx = '^' + pathMask.replace(argRx, '([^/]*)') + (exact ? '$' : '')
     const match = [...path.matchAll(new RegExp(urlRx, 'gi'))]?.[0]
@@ -156,10 +173,9 @@ export default class Routes<
   /**
    * Intercept history.pushState, history.replaceState, and click events
    */
-  private hookHistory() {
+  private hookHistory = () => {
     const pushStateOrig = history.pushState.bind(history)
     const replaceStateOrig = history.replaceState.bind(history)
-    this.current = this.find(new URL(location.href))
 
     history.pushState = (date, unused, url) => {
       let urlObj = toUrlObj(url)
@@ -172,47 +188,38 @@ export default class Routes<
         return pushStateOrig(date, unused, urlObj)
       }
 
-      let scrollTo = 0
-      let route = this.find(urlObj)
+      this.scrollNext = 0
+      let next = this.find(urlObj)
 
-      if (route.isStack && route.stackHistory.length) {
-        if (this.current.stack?.key === route.key) {
-          route.stackHistory = []
+      if (next.isStack && next.stackHistory.length) {
+        if (this.current.route.stack?.key === next.key) {
+          next.stackHistory = []
         } else {
-          const recall = route.stackHistory[route.stackHistory.length - 1]
+          const recall = next.stackHistory.at(-1)
           urlObj = new URL(recall.url)
-          scrollTo = recall.scrollTop
-          route = this.find(urlObj)
+          this.scrollNext = recall.scrollTop
+          next = this.find(urlObj)
         }
       }
 
-      this.current?.stack?.stackHistory.push({url: location.href, scrollTop: window.scrollY})
+      this.current.route.stack?.stackHistory.push({url: location.href, scrollTop: window.scrollY})
+      this.history.push(this.current)
 
-      // Try to scroll to position after page has loaded
-      const doScroll = () => {
-        window.scrollTo(0, scrollTo)
-        setTimeout(() => window.scrollTo(0, scrollTo), 300)
-        removeEventListener('lazy-loaded', doScroll)
-      }
-      addEventListener('lazy-loaded', doScroll)
-
-      this.current = route
-      this.subscribers.forEach((fn) => fn(this.current))
+      this.subscribers.forEach((fn) => fn(next))
+      console.log('pushState', urlObj, next)
       pushStateOrig(date, unused, urlObj)
     }
     history.replaceState = (date, unused, url) => {
       let urlObj = toUrlObj(url)
-      this.current?.stack?.stackHistory.pop()
-      this.current?.stack?.stackHistory.push({url: location.href, scrollTop: window.scrollY})
-      this.current = this.find(urlObj)
-      this.subscribers.forEach((fn) => fn(this.current))
+      this.subscribers.forEach((fn) => fn(this.find(urlObj)))
       replaceStateOrig(date, unused, urlObj)
     }
 
     addEventListener('popstate', () => {
-      this.current?.stack?.stackHistory.pop()
-      this.current = this.find(new URL(location.href))
-      this.subscribers.forEach((fn) => fn(this.current))
+      this.previous?.route?.stack?.stackHistory.pop()
+      this.scrollNext = this.previous?.scrollTop
+      this.history.pop()
+      this.subscribers.forEach((fn) => fn(this.find(new URL(location.href))))
     })
 
     /**
@@ -225,5 +232,17 @@ export default class Routes<
         history.pushState(Date.now(), '', ln.href)
       }
     })
+  }
+  /** What the scrollY should after a route change */
+  scrollNext = 0
+  /**
+   * Restore the scroll position after a route change
+   *
+   * Is meant to be called from a lazy component's onLoad event
+   */
+  scrollRestore = () => {
+    window.scrollTo(0, this.scrollNext)
+    setTimeout(() => window.scrollTo(0, this.scrollNext))
+    setTimeout(() => window.scrollTo(0, this.scrollNext), 300)
   }
 }
