@@ -40,8 +40,8 @@ type RoutesArray = Route[]
 /** A route with the matching args */
 export type RouteMatch = Route & {urlParams?: Record<string, string>}
 
-export type RoutesClass = typeof Routes
-export type RoutesInstance = InstanceType<RoutesClass>
+export type RouterClass = typeof Router
+export type RouterInstance = InstanceType<RouterClass>
 
 /**
  * Searches up the dom from an element to find an enclosing anchor tag
@@ -72,20 +72,19 @@ function toUrlObj(urlOrPath: string | URL) {
  * Accepts a map of route keys to route definitions. Order by priority because
  * the first match will be returned when querying.
  */
-export default class Routes<
+export default class Router<
   T extends {
     /** key: The unique key of a route */
     [key: string]: RouteDef
   },
 > {
-  /** An array of all the registered routes */
-  array: RoutesArray = []
   /** A map of all the registered routes */
-  val: RoutesVal<T> = {} as any
-  /** The current route */
-  // current: RouteMatch
-  /** The previous route */
-  // previous: RouteMatch & {scrollTop: number}
+  routes: RoutesVal<T> = {} as any
+
+  /** An array of all the registered routes */
+  get routeArray() {
+    return Object.values(this.routes)
+  }
 
   /** Custom history so we can restore scroll on back */
   history: {route: Route; url: string; scrollTop: number}[] = []
@@ -107,21 +106,20 @@ export default class Routes<
    */
   constructor(routes: T) {
     Object.entries(routes).forEach(([k, routeDef]) => {
-      this.val[k as keyof T] = {
+      this.routes[k as keyof T] = {
         ...routeDef,
-        isMatch: (path: string) => Routes.isMatch(path, routeDef.path, routeDef.exact),
+        isMatch: (path: string) => Router.isMatch(path, routeDef.path, routeDef.exact),
         key: k,
         stackHistory: routeDef.isStack ? [] : undefined,
         toPath: (urlParams = {}) => {
           return routeDef.path.replace(/:([^/]*)/g, (_, arg) => urlParams[arg])
         },
       }
-      this.array.push(this.val[k as keyof T])
     })
-    this.array
+    this.routeArray
       .filter((r) => r.isStack)
       .forEach((r) => {
-        this.array.filter((r2) => r2.path.startsWith(r.path)).forEach((r2) => (r2.stack = r))
+        this.routeArray.filter((r2) => r2.path.startsWith(r.path)).forEach((r2) => (r2.stack = r))
       })
     this.hookHistory()
   }
@@ -138,18 +136,18 @@ export default class Routes<
 
   /** Navigate to a route */
   public goto = (routeOrKey: Route | string, urlParams: Record<string, string> = {}) => {
-    const route = typeof routeOrKey === 'string' ? this.val[routeOrKey] : routeOrKey
+    const route = typeof routeOrKey === 'string' ? this.routes[routeOrKey] : routeOrKey
     history.pushState(Date.now(), '', route.toPath(urlParams))
   }
   /** Navigate to a route by replaceState */
   public replace = (routeOrKey: Route | string, urlParams: Record<string, string> = {}) => {
-    const route = typeof routeOrKey === 'string' ? this.val[routeOrKey] : routeOrKey
+    const route = typeof routeOrKey === 'string' ? this.routes[routeOrKey] : routeOrKey
     history.replaceState(Date.now(), '', route.toPath(urlParams))
   }
 
   /** Returns the first route that matches the path */
   public find = (url: URL): RouteMatch => {
-    for (const route of this.array) {
+    for (const route of this.routeArray) {
       const urlParams = route.isMatch(url.pathname)
       if (urlParams) {
         const qs = Object.fromEntries(url.searchParams)
@@ -206,7 +204,6 @@ export default class Routes<
       this.history.push(this.current)
 
       this.subscribers.forEach((fn) => fn(next))
-      console.log('pushState', urlObj, next)
       pushStateOrig(date, unused, urlObj)
     }
     history.replaceState = (date, unused, url) => {

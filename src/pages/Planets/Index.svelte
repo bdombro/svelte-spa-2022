@@ -1,7 +1,7 @@
 <script lang="ts">
-  import routes from '../../routes'
+  import r from '../../router'
   import LayoutDefault from '../../components/LayoutDefault.svelte'
-  routes.replace(routes.val.planetsByPage, { page: '1' }, )
+  r.replace(r.routes.planetsByPage, { page: '1' }, )
 </script>
 
 <LayoutDefault />

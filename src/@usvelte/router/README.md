@@ -1,7 +1,7 @@
 - Stack features --
 - Auto handles all link clicks to same-site and back/popstate
 - Lazy loads routes with code-splitting
-- Exposes routes class to easily access route meta anywhere
+- Exposes router class to easily access route meta anywhere
 - Goto any url with postfix #replace and the browser history will be replaced instead of pushed
 - No dependencies, 3kb min+gziped
 - Scroll restoration on history recall

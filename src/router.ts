@@ -1,5 +1,5 @@
-import {Routes} from './@usvelte/router'
-const routes = new Routes({
+import {Router} from './@usvelte/router'
+const router = new Router({
   index: {
     loader: () => import('./pages/Index.svelte'),
     path: '/',
@@ -33,4 +33,4 @@ const routes = new Routes({
     path: '/',
   },
 })
-export default routes
+export default router

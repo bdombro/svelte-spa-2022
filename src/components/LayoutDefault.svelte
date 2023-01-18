@@ -1,11 +1,10 @@
 <script lang="ts">
-  import routes from '../routes'
-  const p = routes.val
+  import r from '../router'
   const navitems = [
-    {name: 'Home', path: p.index.path},
-    {name: 'Hello', path: p.hello.toPath({ name: 'world' })},
-    {name: 'Stack1', path: p.stack1.path},
-    {name: 'Planets', path: p.planets.path},
+    {name: 'Home', path: r.routes.index.path},
+    {name: 'Hello', path: r.routes.hello.toPath({ name: 'world' })},
+    {name: 'Stack1', path: r.routes.stack1.path},
+    {name: 'Planets', path: r.routes.planets.path},
     {name: '404', path: '/does-not-exist'},
   ]
 </script>
