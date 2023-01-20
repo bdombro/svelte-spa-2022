@@ -96,8 +96,12 @@ export class Router<
     return this.history.at(-1)
   }
 
+  /** What the scrollY should after a route change */
+  private scrollNext = 0
+
   /** An array of onChange callbacks, aka subscribers */
-  subscribers: ((route: RouteMatch) => any)[] = []
+  private subscribers: ((route: RouteMatch) => any)[] = []
+
   /**
    * A class to manage and negotiate url paths
    *
@@ -124,27 +128,6 @@ export class Router<
     this.hookHistory()
   }
 
-  /** Subscribe to changes to the route */
-  public subscribe = (fn: (route: RouteMatch) => any) => {
-    this.subscribers.push(fn)
-    return () => this.unsubscribe(fn)
-  }
-  /** Subscribe to changes to the route */
-  public unsubscribe = (fn: (route: RouteMatch) => any) => {
-    this.subscribers = this.subscribers.filter((l) => l !== fn)
-  }
-
-  /** Navigate to a route */
-  public goto = (routeOrKey: Route | string, urlParams: Record<string, string> = {}) => {
-    const route = typeof routeOrKey === 'string' ? this.routes[routeOrKey] : routeOrKey
-    history.pushState(Date.now(), '', route.toPath(urlParams))
-  }
-  /** Navigate to a route by replaceState */
-  public replace = (routeOrKey: Route | string, urlParams: Record<string, string> = {}) => {
-    const route = typeof routeOrKey === 'string' ? this.routes[routeOrKey] : routeOrKey
-    history.replaceState(Date.now(), '', route.toPath(urlParams))
-  }
-
   /** Returns the first route that matches the path */
   public find = (url: URL): RouteMatch => {
     for (const route of this.routeArray) {
@@ -157,15 +140,38 @@ export class Router<
     throw new Error(`No route found for path: ${url.pathname}`)
   }
 
-  /** Returns an object of URL params if path matches route.path, false otherwise */
-  static isMatch = (path: string, pathMask: string, exact = true) => {
-    const argRx = /:([^/]*)/g
-    const urlRx = '^' + pathMask.replace(argRx, '([^/]*)') + (exact ? '$' : '')
-    const match = [...path.matchAll(new RegExp(urlRx, 'gi'))]?.[0]
-    const urlParams = match
-      ? [...pathMask.matchAll(argRx)].reduce((acc, arg, i) => ({...acc, [arg[1]]: match[i + 1]}), {})
-      : false
-    return urlParams
+  /** Navigate to a route */
+  public goto = (routeOrKey: Route | string, urlParams: Record<string, string> = {}) => {
+    const route = typeof routeOrKey === 'string' ? this.routes[routeOrKey] : routeOrKey
+    history.pushState(Date.now(), '', route.toPath(urlParams))
+  }
+
+  /**
+   * To be called from a lazy component's onLoad event
+   *
+   * 1. Restore the scroll position after a route change
+   */
+  public onLoad = () => {
+    window.scrollTo(0, this.scrollNext)
+    setTimeout(() => window.scrollTo(0, this.scrollNext))
+    setTimeout(() => window.scrollTo(0, this.scrollNext), 300)
+  }
+
+  /** Navigate to a route by replaceState */
+  public replace = (routeOrKey: Route | string, urlParams: Record<string, string> = {}) => {
+    const route = typeof routeOrKey === 'string' ? this.routes[routeOrKey] : routeOrKey
+    history.replaceState(Date.now(), '', route.toPath(urlParams))
+  }
+
+  /** Subscribe to changes to the route */
+  public subscribe = (fn: (route: RouteMatch) => any) => {
+    this.subscribers.push(fn)
+    return () => this.unsubscribe(fn)
+  }
+
+  /** Unsubscribe to changes to the route */
+  public unsubscribe = (fn: (route: RouteMatch) => any) => {
+    this.subscribers = this.subscribers.filter((l) => l !== fn)
   }
 
   /**
@@ -230,16 +236,15 @@ export class Router<
       }
     })
   }
-  /** What the scrollY should after a route change */
-  scrollNext = 0
-  /**
-   * Restore the scroll position after a route change
-   *
-   * Is meant to be called from a lazy component's onLoad event
-   */
-  scrollRestore = () => {
-    window.scrollTo(0, this.scrollNext)
-    setTimeout(() => window.scrollTo(0, this.scrollNext))
-    setTimeout(() => window.scrollTo(0, this.scrollNext), 300)
+
+  /** Returns an object of URL params if path matches route.path, false otherwise */
+  static isMatch = (path: string, pathMask: string, exact = true) => {
+    const argRx = /:([^/]*)/g
+    const urlRx = '^' + pathMask.replace(argRx, '([^/]*)') + (exact ? '$' : '')
+    const match = [...path.matchAll(new RegExp(urlRx, 'gi'))]?.[0]
+    const urlParams = match
+      ? [...pathMask.matchAll(argRx)].reduce((acc, arg, i) => ({...acc, [arg[1]]: match[i + 1]}), {})
+      : false
+    return urlParams
   }
 }
